@@ -1,0 +1,439 @@
+const SUPABASE_URL =
+'https://ateqeizblsnxrsnwurov.supabase.co';
+
+const SUPABASE_KEY =
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0ZXFlaXpibHNueHJzbnd1cm92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTg5NjEsImV4cCI6MjA5NDc3NDk2MX0.RGl7g2AbEt9xZ5J_uHVRM9bTy6h7RWnewfjZMrNblPw';
+
+const supabase =
+window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+const map =
+L.map('map').setView([23.6850,90.3563],7);
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{
+maxZoom:19
+}
+).addTo(map);
+
+let geoLayer;
+let donorMarkers=[];
+
+async function loadGeoJSON(){
+
+try{
+
+const response =
+await fetch('./bgd_admin0.geojson');
+
+if(!response.ok){
+throw new Error('GeoJSON missing');
+}
+
+const geojson =
+await response.json();
+
+geoLayer =
+L.geoJSON(geojson,{
+
+style:{
+color:'#fff',
+weight:1,
+fillColor:'#b30000',
+fillOpacity:.6
+},
+
+onEachFeature:(feature,layer)=>{
+
+layer.on('click',()=>{
+
+const district =
+feature.properties.name ||
+feature.properties.NAME_1 ||
+feature.properties.admin ||
+'Unknown';
+
+document.getElementById('district').value =
+district;
+
+loadDonors(district);
+
+});
+
+}
+
+}).addTo(map);
+
+map.fitBounds(
+geoLayer.getBounds()
+);
+
+}catch(err){
+
+console.error(err);
+
+alert(
+'GeoJSON failed to load'
+);
+
+}
+
+}
+
+async function signup(){
+
+const email =
+document.getElementById('email').value;
+
+const password =
+document.getElementById('password').value;
+
+const { error } =
+await supabase.auth.signUp({
+email,
+password
+});
+
+if(error){
+alert(error.message);
+return;
+}
+
+alert('Signup successful');
+
+}
+
+async function login(){
+
+const email =
+document.getElementById('email').value;
+
+const password =
+document.getElementById('password').value;
+
+const { error } =
+await supabase.auth.signInWithPassword({
+email,
+password
+});
+
+if(error){
+alert(error.message);
+return;
+}
+
+alert('Login successful');
+
+}
+
+async function logout(){
+
+await supabase.auth.signOut();
+
+alert('Logged out');
+
+}
+
+supabase.auth.onAuthStateChange(
+(event,session)=>{
+
+const authStatus =
+document.getElementById('authStatus');
+
+if(session){
+
+authStatus.innerHTML =
+'<p class="online">Logged In</p>';
+
+}else{
+
+authStatus.innerHTML =
+'<p class="offline">Logged Out</p>';
+
+}
+
+}
+);
+
+async function addDonor(){
+
+const user =
+(await supabase.auth.getUser()).data.user;
+
+if(!user){
+
+alert('Login required');
+
+return;
+
+}
+
+navigator.geolocation.getCurrentPosition(
+
+async(pos)=>{
+
+const donor = {
+
+name:
+document.getElementById('name').value,
+
+phone:
+document.getElementById('phone').value,
+
+blood_group:
+document.getElementById('blood').value,
+
+district:
+document.getElementById('district').value,
+
+latitude:
+pos.coords.latitude,
+
+longitude:
+pos.coords.longitude,
+
+available:true,
+
+status:'available'
+
+};
+
+const { error } =
+await supabase
+.from('donors')
+.insert([donor]);
+
+if(error){
+
+alert(error.message);
+
+return;
+
+}
+
+alert('Donor uploaded');
+
+loadDonors();
+
+}
+
+);
+
+}
+
+async function loadDonors(
+districtFilter=''
+){
+
+donorMarkers.forEach(
+m=>map.removeLayer(m)
+);
+
+donorMarkers=[];
+
+const blood =
+document.getElementById('searchBlood').value;
+
+let query =
+supabase
+.from('donors')
+.select('*')
+.eq('available',true);
+
+if(blood){
+
+query =
+query.eq(
+'blood_group',
+blood
+);
+
+}
+
+if(districtFilter){
+
+query =
+query.eq(
+'district',
+districtFilter
+);
+
+}
+
+const { data,error } =
+await query;
+
+const results =
+document.getElementById('results');
+
+results.innerHTML =
+'<div class="loading">Loading donors...</div>';
+
+if(error){
+
+results.innerHTML =
+'Database error';
+
+return;
+
+}
+
+results.innerHTML='';
+
+if(!data.length){
+
+results.innerHTML =
+'No donors found';
+
+return;
+
+}
+
+data.forEach(d=>{
+
+results.innerHTML += `
+<div class="donor">
+
+<b>${d.name}</b><br>
+
+Blood:
+${d.blood_group}<br>
+
+Phone:
+${d.phone}<br>
+
+District:
+${d.district}<br>
+
+<div class="online">
+${d.status}
+</div>
+
+</div>
+`;
+
+if(
+d.latitude &&
+d.longitude
+){
+
+const marker =
+L.marker([
+d.latitude,
+d.longitude
+])
+.addTo(map)
+.bindPopup(
+`${d.name}
+${d.blood_group}`
+);
+
+donorMarkers.push(marker);
+
+}
+
+});
+
+}
+
+async function findNearby(){
+
+navigator.geolocation.getCurrentPosition(
+
+async(pos)=>{
+
+const lat =
+pos.coords.latitude;
+
+const lon =
+pos.coords.longitude;
+
+map.setView([lat,lon],11);
+
+const { data,error } =
+await supabase.rpc(
+'nearby_donors',
+{
+lat,
+lon,
+radius_km:30
+}
+);
+
+const results =
+document.getElementById('results');
+
+results.innerHTML='';
+
+if(error){
+
+results.innerHTML =
+'Nearby search failed';
+
+return;
+
+}
+
+if(!data.length){
+
+results.innerHTML =
+'No nearby donors';
+
+return;
+
+}
+
+data.forEach(d=>{
+
+results.innerHTML += `
+<div class="donor">
+
+<b>${d.name}</b><br>
+
+Blood:
+${d.blood_group}<br>
+
+Phone:
+${d.phone}<br>
+
+District:
+${d.district}<br>
+
+Distance:
+${Number(
+d.distance_km
+).toFixed(1)} km
+
+</div>
+`;
+
+});
+
+}
+
+);
+
+}
+
+supabase
+.channel('realtime-donors')
+.on(
+'postgres_changes',
+{
+event:'*',
+schema:'public',
+table:'donors'
+},
+()=>{
+loadDonors();
+}
+)
+.subscribe();
+
+loadGeoJSON();
+
+loadDonors();

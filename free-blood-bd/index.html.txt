@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
+
+<title>Free Blood Bangladesh</title>
+
+<link
+rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<link
+rel="stylesheet"
+href="style.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+</head>
+
+<body>
+
+<header>
+Free Blood Bangladesh
+</header>
+
+<div class="container">
+
+<div id="map"></div>
+
+<div class="sidebar">
+
+<div class="card">
+
+<h3>Authentication</h3>
+
+<input
+id="email"
+type="email"
+placeholder="Email"
+/>
+
+<input
+id="password"
+type="password"
+placeholder="Password"
+/>
+
+<button onclick="signup()">
+Signup
+</button>
+
+<button onclick="login()">
+Login
+</button>
+
+<button onclick="logout()">
+Logout
+</button>
+
+<div id="authStatus"></div>
+
+</div>
+
+<div class="card">
+
+<h3>Add Donor</h3>
+
+<input
+id="name"
+placeholder="Donor Name"
+/>
+
+<input
+id="phone"
+placeholder="Phone Number"
+/>
+
+<select id="blood">
+
+<option>A+</option>
+<option>A-</option>
+<option>B+</option>
+<option>B-</option>
+<option>O+</option>
+<option>O-</option>
+<option>AB+</option>
+<option>AB-</option>
+
+</select>
+
+<input
+id="district"
+placeholder="District"
+/>
+
+<button onclick="addDonor()">
+Upload Donor
+</button>
+
+</div>
+
+<div class="card">
+
+<h3>Search Donors</h3>
+
+<select id="searchBlood">
+
+<option value="">
+All Blood Groups
+</option>
+
+<option>A+</option>
+<option>A-</option>
+<option>B+</option>
+<option>B-</option>
+<option>O+</option>
+<option>O-</option>
+<option>AB+</option>
+<option>AB-</option>
+
+</select>
+
+<button onclick="loadDonors()">
+Search Donors
+</button>
+
+<button onclick="findNearby()">
+Nearby Donors
+</button>
+
+</div>
+
+<div class="card">
+
+<h3>Instructions</h3>
+
+<p>
+Click districts on the map to filter donors.
+</p>
+
+<p>
+Login before uploading donor data.
+</p>
+
+<p>
+Enable location permission for nearby donor search.
+</p>
+
+</div>
+
+<div id="results"></div>
+
+</div>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+
+</html>
